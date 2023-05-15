@@ -1,2 +1,2 @@
-# Go-Video-Streaming-Server
-Live Video Streaming Server in Golang/Go
+# Go-Streaming-Server
+Live Video or Audio Streaming Server in Golang/Go
