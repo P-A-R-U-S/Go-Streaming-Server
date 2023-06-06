@@ -1,29 +1,97 @@
 package main
 
 import (
-	"fmt"
+	"bufio"
+	"github.com/urfave/cli"
 	"log"
-	"net/http"
+	"net"
+	"os"
+	"sync"
+	"time"
+)
+
+// VERSION indicates which version of the binary is running.
+var VERSION string
+
+var (
+	port     string
+	protocol = "tcp"
+	timeout  = time.Microsecond * 2000
+	wg       sync.WaitGroup
+)
+
+const (
+	DEFAULT_protocol = "8080"
 )
 
 func main() {
-	// configure the songs directory name and port
-	const songsDir = "Files/Sample1"
-	const port = 8080
+	VERSION = "0.0.1"
 
-	// add a handler for the song files
-	http.Handle("/", addHeaders(http.FileServer(http.Dir(songsDir))))
-	fmt.Printf("Starting server on %v\n", port)
-	log.Printf("Serving %s on HTTP port: %v\n", songsDir, port)
+	a := cli.NewApp()
+	a.Name = "Video Streaming Server"
+	a.Usage = "Streaming Server let different sources stream video/audio files"
+	a.Author = "Valentyn Ponomarenko"
+	a.Email = "ValentynPonomarenko@gmail.com"
+	a.Version = VERSION
 
-	// serve and log errors
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", port), nil))
+	a.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "port",
+			Value: DEFAULT_protocol,
+			Usage: "Streaming Server end-point port, e.g. --port 8080",
+		},
+	}
+
+	a.Action = func(c *cli.Context) error {
+		if len(c.Args()) == 0 {
+			cli.ShowAppHelp(c)
+		}
+
+		if c.IsSet("port") {
+			port = c.String("port")
+			log.Printf("set paremeter: 'port' to %s\n", port)
+		}
+
+		return nil
+	}
+
+	err := a.Run(os.Args)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// start listening webSocket connections
+	startSocket()
 }
 
-// addHeaders will act as middleware to give us CORS support
-func addHeaders(h http.Handler) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		h.ServeHTTP(w, r)
+// processing webSocket connection
+func startSocket() {
+	log.Printf("Port:%s/n", port)
+	lister, err := net.Listen(protocol, ":"+port)
+	if err != nil {
+		panic(err)
+	}
+
+	for {
+		conn, err := lister.Accept()
+		if err != nil {
+			panic(err)
+		}
+		go handleSocketConnection(conn)
+	}
+}
+
+func handleSocketConnection(conn net.Conn) {
+	name := conn.RemoteAddr()
+	log.Printf("connected: %+v", name)
+
+	defer conn.Close()
+
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		//TODO: next to change to Bytes, Text using just for testing
+		bytes := scanner.Bytes()
+		log.Printf("reseverd from %+v package size:%d", name, len(bytes))
 	}
 }
