@@ -15,20 +15,20 @@ var VERSION string
 
 var (
 	port     string
-	protocol = "tcp"
+	protocol = "tcp" // following protocol can be used: tcp, tcp4, tcp6, unix, or unix packet.
 	timeout  = time.Microsecond * 2000
 	wg       sync.WaitGroup
 )
 
 const (
-	DEFAULT_protocol = "8080"
+	DEFAULT_PORT = "8080"
 )
 
 func main() {
 	VERSION = "0.0.1"
 
 	a := cli.NewApp()
-	a.Name = "Video Streaming Server"
+	a.Name = "Streaming Server (Video or Audio)"
 	a.Usage = "Streaming Server let different sources stream video/audio files"
 	a.Author = "Valentyn Ponomarenko"
 	a.Email = "ValentynPonomarenko@gmail.com"
@@ -37,7 +37,7 @@ func main() {
 	a.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "port",
-			Value: DEFAULT_protocol,
+			Value: DEFAULT_PORT,
 			Usage: "Streaming Server end-point port, e.g. --port 8080",
 		},
 	}
@@ -52,6 +52,11 @@ func main() {
 			log.Printf("set paremeter: 'port' to %s\n", port)
 		}
 
+		if !c.IsSet("help") {
+			// start listening webSocket connections
+			startSocket()
+		}
+
 		return nil
 	}
 
@@ -60,9 +65,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// start listening webSocket connections
-	startSocket()
 }
 
 // processing webSocket connection
@@ -92,6 +94,6 @@ func handleSocketConnection(conn net.Conn) {
 	for scanner.Scan() {
 		//TODO: next to change to Bytes, Text using just for testing
 		bytes := scanner.Bytes()
-		log.Printf("reseverd from %+v package size:%d", name, len(bytes))
+		log.Printf("receiverd from %+v package size:%d", name, len(bytes))
 	}
 }
